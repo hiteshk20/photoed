@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ProEditor | Elite Graphics Suite</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background-color: #0f0f0f;
+            color: #e5e5e5;
+            overflow: hidden;
+            user-select: none;
+            margin: 0;
+            padding: 0;
+        }
+        .workspace-bg {
+            background-image: 
+                linear-gradient(45deg, #1a1a1a 25%, transparent 25%), 
+                linear-gradient(-45deg, #1a1a1a 25%, transparent 25%), 
+                linear-gradient(45deg, transparent 75%, #1a1a1a 25%), 
+                linear-gradient(-45deg, transparent 75%, #1a1a1a 25%);
+            background-size: 20px 20px;
+            background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+        }
+        .panel {
+            background-color: #1c1c1c;
+            border: 1px solid #333;
+        }
+        .tool-btn {
+            @apply p-2 rounded transition-all duration-200;
+            background: transparent;
+            border: 1px solid transparent;
+            cursor: pointer;
+        }
+        .tool-btn:hover {
+            background: #333;
+        }
+        .tool-btn.active {
+            background: #444;
+            border-color: #666;
+            box-shadow: 0 0 10px rgba(0,0,0,0.5);
+        }
+        .custom-scroll::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scroll::-webkit-scrollbar-thumb {
+            background: #444;
+            border-radius: 3px;
+        }
+        #main-canvas {
+            background-color: white;
+            image-rendering: pixelated;
+            box-shadow: 0 0 50px rgba(0,0,0,0.5);
+            cursor: crosshair;
+        }
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #2563eb;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 12px;
+            z-index: 100;
+            animation: slideIn 0.3s ease-out;
+        }
+        @keyframes slideIn {
+            from { transform: translateX(100%); }
+            to { transform: translateX(0); }
+        }
+    </style>
+</head>
+<body class="h-screen w-screen flex flex-col">
+
+    <!-- Top Menu Bar -->
+    <header class="h-10 panel flex items-center px-4 text-xs font-medium space-x-4 z-50">
+        <div class="font-bold text-blue-500 mr-4">ProEditor</div>
+        <div class="flex space-x-3">
+            <div class="cursor-pointer hover:text-white">File</div>
+            <div class="cursor-pointer hover:text-white">Edit</div>
+            <div class="cursor-pointer hover:text-white">Image</div>
+            <div class="cursor-pointer hover:text-white">Layer</div>
+            <div class="cursor-pointer hover:text-white">Filter</div>
+            <div class="cursor-pointer hover:text-white">View</div>
+        </div>
+    </header>
+
+    <main class="flex-1 flex overflow-hidden">
+        <!-- Hidden File Inputs -->
+        <input type="file" id="file-input-open" class="hidden" accept="image/*,.psd">
+        <input type="file" id="file-input-import" class="hidden" accept="image/*">
+
+        <!-- Left Toolbar -->
+
+        <aside class="w-14 panel flex flex-col items-center py-4 space-y-4 z-40">
+            <button id="tool-move" class="tool-btn active" title="Move Tool (V)">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 11l5-5m0 0l5 5m-5-5v12"></path></svg>
+            </button>
+            <button id="tool-marquee" class="tool-btn" title="Marquee Tool (M)">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4h16v16H4z"></path></svg>
+            </button>
+            <button id="tool-lasso" class="tool-btn" title="Lasso Tool (L)">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6l-6 6 6 6 6-6-6-6z"></path></svg>
+            </button>
+            <button id="tool-brush" class="tool-btn" title="Brush Tool (B)">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536M9 11l3 3m-3-3l3-3m-3 3l-3-3m3 3l3-3"></path></svg>
+            </button>
+            <button id="tool-eraser" class="tool-btn" title="Eraser Tool (E)">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-5-5-5 5-5 5 5 5 5-5 5-5z"></path></svg>
+            </button>
+            <button id="tool-text" class="tool-btn" title="Text Tool (T)">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7h16M4 12h16M4 17h16"></path></svg>
+            </button>
+            <div class="border-t border-gray-700 w-8 my-2"></div>
+            <input type="color" id="color-picker" class="w-8 h-8 bg-transparent border-none cursor-pointer">
+        </aside>
+
+        <!-- Center Workspace -->
+        <section id="workspace" class="flex-1 relative overflow-hidden workspace-bg cursor-grab active:cursor-grabbing">
+            <!-- The Canvas is placed inside a transformation wrapper to allow panning and zooming -->
+            <div id="canvas-container" class="absolute transition-transform duration-75 ease-out">
+                <canvas id="main-canvas" class="shadow-2xl"></canvas>
+            </div>
+        </section>
+
+        <!-- Right Panels -->
+        <aside class="w-64 panel flex flex-col z-40">
+            <!-- History Panel -->
+            <div class="h-1/3 flex flex-col border-b border-gray-700">
+                <div class="px-3 py-2 text-[10px] uppercase font-bold text-gray-500 border-b border-gray-700">History</div>
+                <div id="history-list" class="flex-1 overflow-y-auto custom-scroll text-xs space-y-1 p-2">
+                    <!-- History items will be injected here -->
+                </div>
+            </div>
+            <!-- Layers Panel -->
+            <div class="h-2/3 flex flex-col">
+                <div class="px-3 py-2 text-[10px] uppercase font-bold text-gray-500 border-b border-gray-700 flex justify-between items-center">
+                    <span>Layers</span>
+                    <div class="flex space-x-2">
+                        <button id="btn-add-layer" class="hover:text-white">+</button>
+                        <button id="btn-del-layer" class="hover:text-white">×</button>
+                    </div>
+                </div>
+                <div id="layer-list" class="flex-1 overflow-y-auto custom-scroll p-2 space-y-1">
+                    <!-- Layers will be injected here -->
+                </div>
+            </div>
+        </aside>
+    </main>
+
+    <script type="module" src="src/main.js"></script>
+</body>
+</html>
